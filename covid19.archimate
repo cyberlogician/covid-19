@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<archimate:model xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:archimate="http://www.archimatetool.com/archimate" name="Pandemic Response" id="a1ddf120-78f2-42e1-990e-e0cfeb01f9e2" version="4.6.0">
+  <folder name="Strategy" id="456697cf-a039-403d-b0f7-0b8f5826c868" type="strategy"/>
+  <folder name="Business" id="45b38090-4de4-4687-8a80-941f8d01714f" type="business">
+    <element xsi:type="archimate:BusinessService" name="Public Health Awareness" id="d3f1a129-f1dd-42de-a912-6fe7b886c90a"/>
+    <element xsi:type="archimate:BusinessService" name="COVID-19 Testing and Diagnosis" id="f19f0155-3335-43e4-9c1b-1b4638727ca9"/>
+    <element xsi:type="archimate:BusinessService" name="Quarantine" id="82c889a1-150b-4cc8-a00d-093d1311aaad"/>
+    <element xsi:type="archimate:BusinessService" name="Business Closure" id="cda6f4ff-4e4b-4dc8-b0bb-69fe6b7f8599"/>
+    <element xsi:type="archimate:BusinessService" name="Individual Economic Support" id="501eb25f-570b-4d47-a40f-68ca0aaeec02"/>
+    <element xsi:type="archimate:BusinessService" name="Public Service Closures" id="a41346c3-3512-46f3-814d-5a123a525163"/>
+  </folder>
+  <folder name="Application" id="b4633ee9-3171-4987-a7f1-421e98192d5f" type="application"/>
+  <folder name="Technology &amp; Physical" id="eab094d5-c1af-4c9c-ac6c-54937077d137" type="technology"/>
+  <folder name="Motivation" id="843065b1-c40b-4130-b515-7ee23c4ad8e2" type="motivation">
+    <element xsi:type="archimate:Goal" name="Protect Health of Citizens" id="24e99440-cace-4514-bafa-bb2e2b7c04ef"/>
+    <element xsi:type="archimate:Goal" name="Protect the Stability of the National Economy" id="897d0052-21d8-40dc-b1ce-74ebd59b6d15"/>
+    <element xsi:type="archimate:Goal" name="Control Demand for Health Services" id="8c311b8e-4a12-40d3-9e16-08a3176547fd"/>
+    <element xsi:type="archimate:Goal" name="Increase Peak Capacity for health Services" id="0d3c45ab-2dfb-4a22-ab4d-a7e09aa6e78e"/>
+    <element xsi:type="archimate:Principle" name="Equal Access to Health Services" id="6a4471dd-2282-4396-a034-3fa0366994c3"/>
+    <element xsi:type="archimate:Principle" name="Respect for Individual Rights" id="b988e47b-9493-41d9-b0ce-a3ffa9b15c12"/>
+    <element xsi:type="archimate:Goal" name="Maintain Core Health Services" id="0e7a2f1b-79d0-4d2a-b142-0cf1b903aca5"/>
+    <element xsi:type="archimate:Principle" name="Prefer Market Based Economy" id="0209af9a-986a-4581-8d28-15c383a13c25"/>
+  </folder>
+  <folder name="Implementation &amp; Migration" id="ac578c09-3435-432e-a984-7ef3874d5c51" type="implementation_migration"/>
+  <folder name="Other" id="dafc91d9-d61f-4d51-8e3e-19c74084198a" type="other"/>
+  <folder name="Relations" id="7860f9fe-1593-474b-9227-73cb468b7389" type="relations">
+    <element xsi:type="archimate:AggregationRelationship" id="f65d6b7c-87fc-42c6-bce8-c4087702c4f9" source="24e99440-cace-4514-bafa-bb2e2b7c04ef" target="8c311b8e-4a12-40d3-9e16-08a3176547fd"/>
+    <element xsi:type="archimate:AggregationRelationship" id="ae2e8000-5863-4268-b2fd-b7ff23a08080" source="24e99440-cace-4514-bafa-bb2e2b7c04ef" target="0e7a2f1b-79d0-4d2a-b142-0cf1b903aca5"/>
+    <element xsi:type="archimate:AggregationRelationship" id="b1f5b1a2-5cb9-4db0-8993-4d33b5940229" source="24e99440-cace-4514-bafa-bb2e2b7c04ef" target="0d3c45ab-2dfb-4a22-ab4d-a7e09aa6e78e"/>
+  </folder>
+  <folder name="Views" id="5964321c-6acd-4316-9ec2-8b23a677a42e" type="diagrams">
+    <element xsi:type="archimate:ArchimateDiagramModel" name="Default View" id="eedd057f-d631-4d6f-8d17-95e7f8df5f9d"/>
+    <element xsi:type="archimate:ArchimateDiagramModel" name="Strategic Outcomes" id="48cdc716-295c-4ab8-9205-67d37a4fefa1" viewpoint="goal_realization">
+      <child xsi:type="archimate:DiagramObject" id="c742795d-cfb3-44da-b2b1-0c0a0a1ee0a3" archimateElement="24e99440-cace-4514-bafa-bb2e2b7c04ef">
+        <bounds x="276" y="168" width="156" height="60"/>
+        <sourceConnection xsi:type="archimate:Connection" id="04fe884c-b6ef-4ba4-8215-1ab3419e7ab6" source="c742795d-cfb3-44da-b2b1-0c0a0a1ee0a3" target="9530372d-3469-4d25-9f91-e4f3be035a25" archimateRelationship="f65d6b7c-87fc-42c6-bce8-c4087702c4f9"/>
+        <sourceConnection xsi:type="archimate:Connection" id="b42f3ae5-e54b-40a8-a905-728bf8ffc73a" source="c742795d-cfb3-44da-b2b1-0c0a0a1ee0a3" target="9ded04ef-7b2c-42a7-aea3-c56368d059df" archimateRelationship="ae2e8000-5863-4268-b2fd-b7ff23a08080"/>
+        <sourceConnection xsi:type="archimate:Connection" id="289c5f74-1f23-46e1-9f1b-02d76308b96d" source="c742795d-cfb3-44da-b2b1-0c0a0a1ee0a3" target="4ea4ce1e-e7c4-4d56-8948-8956bbbfdac3" archimateRelationship="b1f5b1a2-5cb9-4db0-8993-4d33b5940229"/>
+      </child>
+      <child xsi:type="archimate:DiagramObject" id="d0def019-74fc-4c1b-8086-881f68b9e29c" archimateElement="897d0052-21d8-40dc-b1ce-74ebd59b6d15">
+        <bounds x="828" y="250" width="156" height="64"/>
+      </child>
+      <child xsi:type="archimate:DiagramObject" id="9530372d-3469-4d25-9f91-e4f3be035a25" targetConnections="04fe884c-b6ef-4ba4-8215-1ab3419e7ab6" archimateElement="8c311b8e-4a12-40d3-9e16-08a3176547fd">
+        <bounds x="60" y="276" width="156" height="63"/>
+      </child>
+      <child xsi:type="archimate:DiagramObject" id="4ea4ce1e-e7c4-4d56-8948-8956bbbfdac3" targetConnections="289c5f74-1f23-46e1-9f1b-02d76308b96d" archimateElement="0d3c45ab-2dfb-4a22-ab4d-a7e09aa6e78e">
+        <bounds x="480" y="276" width="156" height="63"/>
+      </child>
+      <child xsi:type="archimate:DiagramObject" id="b632f112-ec6d-44e1-bb62-4aba3d2f1297" archimateElement="6a4471dd-2282-4396-a034-3fa0366994c3">
+        <bounds x="227" y="42" width="157" height="55"/>
+      </child>
+      <child xsi:type="archimate:DiagramObject" id="55dbedd3-3823-4def-9d1a-00f4a8c7e6bc" archimateElement="b988e47b-9493-41d9-b0ce-a3ffa9b15c12">
+        <bounds x="408" y="42" width="157" height="55"/>
+      </child>
+      <child xsi:type="archimate:DiagramObject" id="9ded04ef-7b2c-42a7-aea3-c56368d059df" targetConnections="b42f3ae5-e54b-40a8-a905-728bf8ffc73a" archimateElement="0e7a2f1b-79d0-4d2a-b142-0cf1b903aca5">
+        <bounds x="276" y="276" width="156" height="63"/>
+      </child>
+      <child xsi:type="archimate:DiagramObject" id="8b4da984-5310-40e1-beaa-1acf996ed1c0" archimateElement="0209af9a-986a-4581-8d28-15c383a13c25">
+        <bounds x="36" y="42" width="157" height="55"/>
+      </child>
+    </element>
+    <element xsi:type="archimate:ArchimateDiagramModel" name="COVID-19 Policy Interventions - Canada" id="be3d25ec-1e71-49ea-acd5-9462f7625199" viewpoint="outcome_realization">
+      <child xsi:type="archimate:DiagramObject" id="bcd45411-74f8-46b0-9798-73068f1480d1" archimateElement="d3f1a129-f1dd-42de-a912-6fe7b886c90a">
+        <bounds x="275" y="212" width="120" height="55"/>
+      </child>
+      <child xsi:type="archimate:DiagramObject" id="37900425-b3f7-4a26-ba7b-6a63f4c354c7" archimateElement="f19f0155-3335-43e4-9c1b-1b4638727ca9">
+        <bounds x="440" y="117" width="120" height="55"/>
+      </child>
+      <child xsi:type="archimate:DiagramObject" id="b411b162-ac28-4629-9f1f-e18a926637c4" archimateElement="82c889a1-150b-4cc8-a00d-093d1311aaad">
+        <bounds x="476" y="327" width="120" height="55"/>
+      </child>
+      <child xsi:type="archimate:DiagramObject" id="af89769e-b80e-46c3-9b6b-d15bb511a9e0" archimateElement="cda6f4ff-4e4b-4dc8-b0bb-69fe6b7f8599">
+        <bounds x="664" y="234" width="120" height="55"/>
+      </child>
+      <child xsi:type="archimate:DiagramObject" id="e0e089b7-2264-45a0-a03e-74392e896fb0" archimateElement="501eb25f-570b-4d47-a40f-68ca0aaeec02">
+        <bounds x="726" y="354" width="120" height="55"/>
+      </child>
+      <child xsi:type="archimate:DiagramObject" id="2a2da51a-b1bd-479b-950c-448e98dfb70b" archimateElement="a41346c3-3512-46f3-814d-5a123a525163">
+        <bounds x="719" y="152" width="120" height="55"/>
+      </child>
+    </element>
+  </folder>
+</archimate:model>
