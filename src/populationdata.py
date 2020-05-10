@@ -110,10 +110,18 @@ class PopulationData:
 
 
     def get_population(self, loc):
-        return self.df.loc[self.df['location'] == loc]['population'].values[0]
+        try:
+            result = self.df.loc[self.df['location'] == loc, 'population'].values[0]
+        except:
+            result = np.nan
+        return result
 
     def get_density(self, loc):
-        return self.df.loc[self.df['location'] == loc]['population_density'].values[0]
+        try:
+            result = self.df.loc[self.df['location'] == loc, 'population_density'].values[0]
+        except:
+            result = np.nan
+        return result
 
     def to_csv(self, filename):
         """
@@ -126,4 +134,5 @@ class PopulationData:
         self.df.to_csv(save_path, index=False)
         return
 
-
+# population_table = PopulationData.from_csv("../population_data.csv")
+population_table = PopulationData()

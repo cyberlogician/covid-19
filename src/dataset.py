@@ -1,70 +1,10 @@
+from pathlib import Path
 import pandas as pd
 import numpy as np
-
-# Dataset handlers
-def _get_ecdc():
-    # get source - note ecdc source conforms with our standard variable names
-    result = pd.read_csv('https://covid.ourworldindata.org/data/ecdc/full_data.csv')
-
-    # get population data
-    pop_df = result['location'].apply(_ecdc_get_pop)
-
-
-    return
-
-def _get_phac():
-    return
-
-def _get_us():
-    return
-
-def _ecdc_get_pop(loc):
-    """
-    For locations in the ecdc dataset, return the population
-
-    :param loc: str - location
-    :return: (population: float or np.nan, population_density: float or np.nan)
-    """
-
-    location_map = {
-        'Bolivia': 'Bolivia (Plurinational State of)',
-        'Bonaire Sint Eustatius and Saba': 'Bonaire, Sint Eustatius and Saba',
-        'Brunei': 'Brunei Darussalam',
-        'Cape Verde': 'Cabo Verde',
-        "Cote d'Ivoire": "Côte d'Ivoire",
-        'Curacao': 'Curaçao',
-        'Czech Republic': 'Czechia',
-        'Democratic Republic of Congo': 'Democratic Republic of the Congo',
-        'Faeroe Islands': 'Faroe Islands',
-        'Falkland Islands': 'Falkland Islands (Malvinas)',
-        'Guernsey': None,
-        'Iran': 'Iran (Islamic Republic of)',
-        'Jersey': None,
-        'Kosovo': None,
-        'Laos': "Lao People's Democratic Republic",
-        'Macedonia': 'North Macedonia',
-        'Moldova': 'Republic of Moldova',
-        'Palestine': None,
-        'Russia': 'Russian Federation',
-        'South Korea': 'Republic of Korea',
-        'Swaziland': None,
-        'Syria': 'Syrian Arab Republic',
-        'Taiwan': 'China, Taiwan Province of China',
-        'Tanzania': 'United Republic of Tanzania',
-        'Timor': 'Timor-Leste',
-        'United States': 'United States of America',
-        'Vatican': None,
-        'Venezuela': 'Venezuela (Bolivarian Republic of)',
-        'Vietnam': 'Viet Nam'
-    }
-
-    lookup_name = location_map.get(loc, loc)
-    if lookup_name == None:
-        return (np.nan, np.nan)
-    else:
-        return (CovidDataset.population_table.get_population(lookup_name),
-                CovidDataset.population_table.get_density(lookup_name))
-
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from matplotlib.ticker import (MultipleLocator, FormatStrFormatter,
+                               AutoMinorLocator)
 
 class CovidDataset:
     """
@@ -74,40 +14,174 @@ class CovidDataset:
     variables = [
         'date',
         'location',
-        'population',
-        'population_density'
         'new_cases',
-        'new_deaths',
-        'new_tests'
+        'new_cases_per_million',
         'total_cases',
+        'total_cases_per_million',
+        'new_deaths',
+        'new_deaths_per_million',
         'total_deaths',
+        'total_deaths_per_million',
+        'new_tests',
+        'new_tests',
+        'new_tests_per_thousand',
         'total_tests',
+        'total_tests_per_thousand',
+        'tests_units'
     ]
 
-    sources = {
-        "ecdc": _get_ecdc(),
-        "phac": _get_phac(),
-        "us": -_get_us()
-    }
-
-
-    @classmethod
-    def set_population_table(cls, pop_data):
+    def __init__(self, src_df):
         """
-        Update the population_table with data from pop_data
-        :param pop_data: PopulationData
+        Initialize object from a source dataframe
+        :param src_df: pd.DataFrame - src_df.columns must include:
+            date,
+            location,
+            total_cases, total_cases_per_million,
+            total_deaths, total_deaths_per_million
+            total_tests, total_tests_per_thousand
+            test_units.
         """
 
-        cls.population_table = pop_data
+        self.df = src_df
+        cols = self.df.columns
+        for var in ["cases", "deaths", "tests"]:
+            if f"new_{var}" not in cols:
+                self._new_from_total(var)
+            if var == "tests":
+                if f"new_{var}_per_thousand" not in cols:
+                    self._new_from_total(var, "thousand")
+            else:
+                if f"new_{var}_per_million" not in cols:
+                    self._new_from_total(var, "million")
         return
 
-    def __init__(self, src):
+    @property
+    def current_date(self):
+        return max(self.df.date)
+
+    def _new_from_total(self, var, unit=""):
         """
-        Initialize object from a url and a variable mapping
-        :param src: str - key to source dataset, each source is associated with a source data handler.
-        :param population_map: dict - mapping location names in src to names in population_table
+        compute daily measurements from total
+
+        :param var: str - one of cases, deaths, tests
+        :param unit: str - one of empty string, thousand, million
+        :return: None
         """
 
-        self.df = self.sources[src]
+        # Set tot_var (source) and new_var (target)
+        if unit == "":
+            tot_var = f"total_{var}"
+            new_var = f"new_{var}"
+        else:
+            tot_var = f"total_{var}_per_{unit}"
+            new_var = f"new_{var}_per_{unit}"
+
+        tot = self.df.pivot(index='date', columns='location', values=tot_var).fillna(0)
+        tot.resample('D').fillna(method='ffill')
+        nc = tot.diff()
+        nc = nc.stack()
+        nc.rename(new_var, inplace=True)
+        self.df = self.df.join(nc, on=['date', 'location'], lsuffix='_old')
+        if f'{new_var}_old' in self.df.columns:
+            self.df.drop(f'{new_var}_old', axis='columns')
         return
+
+    def pivot_location(self, var, *locations):
+        """
+        Return a DataFrame date x location -> var
+
+        :param var: str - the variable to be used for values
+        :param locations: list like - the locations to be used as columns
+
+        :return: DataFrame
+        """
+
+        select_locations = self.df['location'].apply(lambda loc: loc in locations)
+        df = self.df.loc[select_locations]
+        var_pivot = df.pivot(index='date', columns='location', values=var)
+        var_pivot.resample('D').fillna(method='ffill')
+        return var_pivot
+
+    def growth_rate(self, var, window, *locations):
+        """
+        Return a DataFrame indexed by date and with columns containing average growth rate over window
+
+        :param var: str - the variable for which average growth is calculated
+        :param window: int - number of days to include in the average calculation
+        :param locations: list like - locations to be included as columns
+
+        :return: DataFrame
+        """
+        growth = lambda x: np.power(x, 1 / window)
+
+        # select_locations = self.df['location'].apply(lambda loc: loc in locations)
+        # df = self.df.loc[select_locations]
+        # var_pivot = df.pivot(index='date', columns='location', values=var).fillna(0)
+        # var_pivot.resample('D').fillna(method='ffill')
+        var_pivot = self.pivot_location(var, *locations)
+        delta = var_pivot.diff(periods=window)
+        return growth(1 + (delta / var_pivot)) - 1
+
+    def cum_pos_test_rate(self, *locations):
+        """
+        Return a DataFrame date x locations -> positive test rate
+
+        :param locations: list like - locations to be included as columns
+
+        :return: DataFrame
+        """
+
+        return (self.pivot_location('total_cases', *locations)
+                  / self.pivot_location('total_tests', *locations).interpolate(method='linear'))
+
+    def cum_pos_test_growth_rate(self, window, *locations):
+        """
+        Return a DataFrame date x locations -> positive test rate  average growth over window
+
+        :param locations: list like - locations to be included as columns
+
+        :return: DataFrame
+        """
+
+        growth = lambda x: np.power(x, 1 / window)
+
+        pt = self.cum_pos_test_rate(*locations)
+        delta = pt.diff(periods=window)
+        return growth(1 + (delta / pt)) - 1
+
+    def plot(self, var, *locations, **kwargs):
+        """
+        plot variable for locations on single axis
+
+        :param var: str - variable to be plotted
+        :param locations: str - list like of str - the locations to be plotted
+
+        Optional key-word arguments
+        :param log_scale: boolean (default=False)
+        :param date_start: str in yyyy=mm-dd format
+        :param data_end: str in yyyy=mm-dd format
+        :param lw: int (default=3) - linewidth
+        :param colours: list - in order of locations
+        :param title: str
+        :param y_label: str
+
+        :return: matplotlib.axes
+        """
+
+        var_piv = self.pivot_location(var, *locations)
+
+        start_date = kwargs.get("date_start", var_piv.index[0])
+        end_date = kwargs.get("date_end", var_piv.index[-1])
+
+        plot_properties = dict(
+            xlim=(kwargs.get("date_start", var_piv.index[0]), kwargs.get("date_end", var_piv.index[-1])),
+            logy=kwargs.get("log_scale", False),
+            lw=kwargs.get("lw", 3),
+            title=kwargs.get("title", ""),
+        )
+        if "colours" in kwargs:
+            plot_properties["color"] = kwargs["colours"]
+        # return var_piv[start_date: end_date].plot(**plot_properties)
+        return var_piv.plot(**plot_properties)
+
 
