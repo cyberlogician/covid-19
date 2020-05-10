@@ -86,12 +86,13 @@ class CovidDataset:
             self.df.drop(f'{new_var}_old', axis='columns')
         return
 
-    def pivot_location(self, var, *locations):
+    def var_by_location(self, var, *locations, **kwargs):
         """
         Return a DataFrame date x location -> var
 
         :param var: str - the variable to be used for values
         :param locations: list like - the locations to be used as columns
+        :param ma_window: int - if present return moving average over window
 
         :return: DataFrame
         """
@@ -100,7 +101,12 @@ class CovidDataset:
         df = self.df.loc[select_locations]
         var_pivot = df.pivot(index='date', columns='location', values=var)
         var_pivot.resample('D').fillna(method='ffill')
+
+        if "ma_window" in kwargs:
+            var_pivot = var_pivot.rolling(kwargs["ma_window"]).mean()
         return var_pivot
+
+
 
     def growth_rate(self, var, window, *locations):
         """
@@ -118,7 +124,7 @@ class CovidDataset:
         # df = self.df.loc[select_locations]
         # var_pivot = df.pivot(index='date', columns='location', values=var).fillna(0)
         # var_pivot.resample('D').fillna(method='ffill')
-        var_pivot = self.pivot_location(var, *locations)
+        var_pivot = self.var_by_location(var, *locations)
         delta = var_pivot.diff(periods=window)
         return growth(1 + (delta / var_pivot)) - 1
 
@@ -131,8 +137,8 @@ class CovidDataset:
         :return: DataFrame
         """
 
-        return (self.pivot_location('total_cases', *locations)
-                  / self.pivot_location('total_tests', *locations).interpolate(method='linear'))
+        return (self.var_by_location('total_cases', *locations)
+                  / self.var_by_location('total_tests', *locations).interpolate(method='linear'))
 
     def cum_pos_test_growth_rate(self, window, *locations):
         """
@@ -149,7 +155,7 @@ class CovidDataset:
         delta = pt.diff(periods=window)
         return growth(1 + (delta / pt)) - 1
 
-    def plot(self, var, *locations, **kwargs):
+    def plot_var(self, var, *locations, **kwargs):
         """
         plot variable for locations on single axis
 
@@ -157,31 +163,41 @@ class CovidDataset:
         :param locations: str - list like of str - the locations to be plotted
 
         Optional key-word arguments
+        :param ma_window: int - if present plot the moving average over ma_window
+        :param figsize: (int, int)
         :param log_scale: boolean (default=False)
         :param date_start: str in yyyy=mm-dd format
         :param data_end: str in yyyy=mm-dd format
         :param lw: int (default=3) - linewidth
-        :param colours: list - in order of locations
+        :param colours: dict - mapping locations to colour specifications
         :param title: str
         :param y_label: str
 
         :return: matplotlib.axes
         """
 
-        var_piv = self.pivot_location(var, *locations)
+        if "ma_window" in kwargs:
+            var_piv = self.var_by_location(var, *locations, ma_window=kwargs["ma_window"])
+        else:
+            var_piv = self.var_by_location(var, *locations)
 
         start_date = kwargs.get("date_start", var_piv.index[0])
         end_date = kwargs.get("date_end", var_piv.index[-1])
 
         plot_properties = dict(
-            xlim=(kwargs.get("date_start", var_piv.index[0]), kwargs.get("date_end", var_piv.index[-1])),
+            figsize=kwargs.get("figsize", (16,12)),
+            xlim=(start_date, end_date),
             logy=kwargs.get("log_scale", False),
             lw=kwargs.get("lw", 3),
             title=kwargs.get("title", ""),
         )
         if "colours" in kwargs:
-            plot_properties["color"] = kwargs["colours"]
-        # return var_piv[start_date: end_date].plot(**plot_properties)
-        return var_piv.plot(**plot_properties)
+            plot_properties["color"] = [kwargs["colours"][loc] for loc in sorted(locations)]
+        fig = var_piv.plot(**plot_properties)
+
+        legend_labels = [f"{loc}: {var}={var_piv.to_dict()[loc][max(var_piv[:end_date].index)]:.2f}"
+                         for loc in sorted(locations)]
+        plt.legend(legend_labels)
+        return fig
 
 
