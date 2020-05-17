@@ -30,6 +30,10 @@ class CovidDataset:
         'tests_units'
     ]
 
+    dbl_periods = {days: np.expm1(np.log(2) / days) for days in [2,3,4,5,6,7,14,28]}
+    dbl_colour = {1: (1.0, 0, 0), 2: (1.0, 0.2, 0), 3: (1.0, 0.4, 0), 4: (1.0, 0.6, 0), 5: (1.0, 0.8, 0),
+                   6: (1.0, 1.0, 0), 7: (0.8, 1.0, 0), 14: (0, 1.0, 0), 28: (0, 1.0, 0.5)}
+
     def __init__(self, src_df):
         """
         Initialize object from a source dataframe
@@ -86,6 +90,9 @@ class CovidDataset:
             self.df.drop(f'{new_var}_old', axis='columns')
         return
 
+    def get_location(self, location):
+        return self.df.loc[self.df.location == location]
+
     def var_by_location(self, var, *locations, **kwargs):
         """
         Return a DataFrame date x location -> var
@@ -126,7 +133,7 @@ class CovidDataset:
         # var_pivot.resample('D').fillna(method='ffill')
         var_pivot = self.var_by_location(var, *locations)
         delta = var_pivot.diff(periods=window)
-        return growth(1 + (delta / var_pivot)) - 1
+        return growth(1 + (delta / var_pivot.shift(periods=window))) - 1
 
     def cum_pos_test_rate(self, *locations):
         """
@@ -176,13 +183,19 @@ class CovidDataset:
         :return: matplotlib.axes
         """
 
-        if "ma_window" in kwargs:
-            var_piv = self.var_by_location(var, *locations, ma_window=kwargs["ma_window"])
+        if var == "cum_pos_test_rate":
+            plot_data = self.cum_pos_test_rate(*locations)
+        elif var == "cum_pos_test_growth_rate":
+            plot_data = self.cum_pos_test_growth_rate(kwargs.get("ma_window", 1), *locations)
+        elif var[-6:] == "growth":
+            plot_data = self.growth_rate(var[:-7], kwargs.get("ma_window", 1), *locations)
+        elif "ma_window" in kwargs:
+            plot_data = self.var_by_location(var, *locations, ma_window=kwargs["ma_window"])
         else:
-            var_piv = self.var_by_location(var, *locations)
+            plot_data = self.var_by_location(var, *locations)
 
-        start_date = kwargs.get("date_start", var_piv.index[0])
-        end_date = kwargs.get("date_end", var_piv.index[-1])
+        start_date = kwargs.get("date_start", plot_data.index[0])
+        end_date = kwargs.get("date_end", plot_data.index[-1])
 
         plot_properties = dict(
             figsize=kwargs.get("figsize", (16,12)),
@@ -193,11 +206,81 @@ class CovidDataset:
         )
         if "colours" in kwargs:
             plot_properties["color"] = [kwargs["colours"][loc] for loc in sorted(locations)]
-        fig = var_piv.plot(**plot_properties)
+        fig = plot_data.plot(**plot_properties)
 
-        legend_labels = [f"{loc}: {var}={var_piv.to_dict()[loc][max(var_piv[:end_date].index)]:.2f}"
+        legend_labels = [f"{loc}: {var}={plot_data.to_dict()[loc][max(plot_data[:end_date].index)]:.4f}"
                          for loc in sorted(locations)]
         plt.legend(legend_labels)
+        return fig
+
+    def plot_location(self, location, **kwargs):
+        """
+        Plot relevant data for a single location.
+
+        The plot foreground (right axis contains the 28, 7, and 3 day  \rolling average growth rates.  It also
+        contains the cumulative deaths (log scale).  the background (left axis is the log total cases.
+
+        :param location: string.
+
+        Optional keyword arguments
+        :param figsize: (float, float)
+        :param from_date: str = yyyy-mm-dd
+
+        :return: matplotlib.plot.figure
+        """
+
+        fig = plt.figure(figsize=kwargs.get("figsize", (16,12)))
+        ax_l = fig.add_subplot(111)
+        ax_r = ax_l.twinx()
+
+        start = kwargs.get("from_date", 0)
+
+        gwth_3 = self.growth_rate("total_cases", 3, location)[start:]
+        gwth_7 = self.growth_rate("total_cases", 7, location)[start:]
+        gwth_28 = self.growth_rate("total_cases", 28, location)[start:]
+
+        deaths = self.var_by_location("total_deaths", location)[start:]
+        cases = self.var_by_location("total_cases", location)[start:]
+
+        dates = deaths.index
+
+
+        ax_l.plot(dates, gwth_3.values, label="3 day rolling average growth rate of total cases", c='g', lw=6)
+        ax_l.plot(dates, gwth_7.values, label="7 day rolling average growth rate of total cases", c='b', lw=6)
+        ax_l.plot(dates, gwth_28.values, label="28 day rolling average growth rate of total cases", c='r', lw=6)
+
+        ax_r.bar(dates, cases[location].values, color=(0,0,1, 0.3))
+        ax_r.plot(dates, deaths[location].values, label="Total Deaths", c='black',lw=6)
+
+        # for dbl_days, dbl_rate in self.dbl_periods.items():
+        #     if dbl_days == 28:
+        #         ax_l.axhspan(0, dbl_rate, color=self.dbl_colour[dbl_days], alpha=0.2)
+        #     elif dbl_days == 14:
+        #         ax_l.axhspan(self.dbl_periods[28], dbl_rate, color=self.dbl_colour[dbl_days], alpha=0.2)
+        #     else:
+        #         ax_l.axhline(y=dbl_rate, c=self.dbl_colour[dbl_days], lw=3)
+        y_ticks = ["inf",28,14,7,6,5,4,3,2,1]
+        for bot_idx, top_idx in zip(y_ticks[:-1], y_ticks[1:]):
+            bot = self.dbl_periods.get(bot_idx, 0)
+            top = self.dbl_periods.get(top_idx, 0.5)
+            ax_l.axhspan(bot, top, color=self.dbl_colour[top_idx], alpha=0.2)
+
+        ax_l.set_yticks(list(self.dbl_periods.values()))
+        ax_l.set_yticklabels(list(self.dbl_periods.keys()))
+        ax_l.set_ylabel("Number of Days to Double")
+
+        ax_r.set_ylabel('Log Total Cases')
+        ax_r.set_yscale('log')
+        ax_r.legend(loc='upper right')
+
+        ax_l.xaxis.set_major_locator(MultipleLocator(14))
+
+        ax_l.annotate("Active Cases Stop Growing", (dates[0], 0.06))
+
+        ax_l.legend(loc='upper left')
+        ax_l.set_ylim(bottom=0, top=0.5)
+        fig.tight_layout()
+
         return fig
 
 
