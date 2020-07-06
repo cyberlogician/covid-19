@@ -242,6 +242,7 @@ class CovidDataset:
 
         legend_labels = [f"{loc}: {var}={plot_data.to_dict()[loc][max(plot_data[:end_date].index)]:.4f}"
                          for loc in sorted(locations)]
+
         plt.legend(legend_labels)
         return fig
 
@@ -263,7 +264,7 @@ class CovidDataset:
 
         fig = plt.figure(figsize=kwargs.get("figsize", (16,12)))
         ax_l = fig.add_subplot(111)
-        ax_r = ax_l.twinx()
+        # ax_l.xaxis.set_major_locator(MultipleLocator(7))
 
         start = kwargs.get("from_date", 0)
 
@@ -275,12 +276,21 @@ class CovidDataset:
         cases = self.var_by_location("total_cases", location)[start:]
 
         dates = deaths.index
+        # print([list(map(str, dates))])
+
+        x_ticks = [dates[k] for k in range(0,len(dates), 7)]
+        x_tick_labels = [str(x)[10:15] for x in x_ticks]
+        ax_l.set_xticks(x_ticks)
+        ax_l.set_xticklabels(x_tick_labels)
+        ax_l.set_xlabel("2020")
+        # ax_l.xaxis.set_major_locator(MultipleLocator(14))
 
 
         ax_l.plot(dates, gwth_3.values, label="3 day rolling average growth rate of total cases", c='g', lw=6)
         ax_l.plot(dates, gwth_7.values, label="7 day rolling average growth rate of total cases", c='b', lw=6)
         ax_l.plot(dates, gwth_28.values, label="28 day rolling average growth rate of total cases", c='r', lw=6)
 
+        ax_r = ax_l.twinx()
         ax_r.bar(dates, cases[location].values, color=(0,0,1, 0.3))
         ax_r.plot(dates, deaths[location].values, label="Total Deaths", c='black',lw=6)
 
@@ -304,8 +314,6 @@ class CovidDataset:
         ax_r.set_ylabel('Log Total Cases')
         ax_r.set_yscale('log')
         ax_r.legend(loc='upper right')
-
-        ax_l.xaxis.set_major_locator(MultipleLocator(14))
 
         ax_l.annotate("Active Cases Stop Growing", (dates[0], 0.06))
 
