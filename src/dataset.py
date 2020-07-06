@@ -113,7 +113,19 @@ class CovidDataset:
             var_pivot = var_pivot.rolling(kwargs["ma_window"]).mean()
         return var_pivot
 
+    def active_confirmed_cases(self, *locations):
+        """
+        Return an estimate of the active confirmed cases.
 
+        The initial model uses a simple rolling 14-day sum of new cases calculated by taking the 14 day diff of
+        total cases.  Using the total case data smooths out some of the reporting variation
+
+        :param locations: list like - locations to be included as columns
+
+        :return: DataFrame
+        """
+
+        return self.var_by_location("total_cases", *locations).diff(periods=14)
 
     def growth_rate(self, var, window, *locations):
         """
@@ -132,6 +144,26 @@ class CovidDataset:
         # var_pivot = df.pivot(index='date', columns='location', values=var).fillna(0)
         # var_pivot.resample('D').fillna(method='ffill')
         var_pivot = self.var_by_location(var, *locations)
+        delta = var_pivot.diff(periods=window)
+        return growth(1 + (delta / var_pivot.shift(periods=window))) - 1
+
+    def active_growth_rate(self, window, *locations):
+        """
+        Return a DataFrame indexed by date and with columns containing average growth rate over window
+
+        :param var: str - the variable for which average growth is calculated
+        :param window: int - number of days to include in the average calculation
+        :param locations: list like - locations to be included as columns
+
+        :return: DataFrame
+        """
+        growth = lambda x: np.power(x, 1 / window)
+
+        # select_locations = self.df['location'].apply(lambda loc: loc in locations)
+        # df = self.df.loc[select_locations]
+        # var_pivot = df.pivot(index='date', columns='location', values=var).fillna(0)
+        # var_pivot.resample('D').fillna(method='ffill')
+        var_pivot = self.active_confirmed_cases(*locations)
         delta = var_pivot.diff(periods=window)
         return growth(1 + (delta / var_pivot.shift(periods=window))) - 1
 
