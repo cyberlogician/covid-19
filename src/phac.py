@@ -39,10 +39,10 @@ class PHAC(CovidDataset):
                    }
         dateparse = lambda x: datetime.date(*time.strptime(x, '%d-%m-%Y')[:3])
         src = pd.read_csv("https://health-infobase.canada.ca/src/data/covidLive/covid19.csv",
-                             error_bad_lines=False,
-                             warn_bad_lines=False,
-                             parse_dates=['date'],
-                             date_parser= dateparse)
+                                 error_bad_lines=False,
+                                 warn_bad_lines=False,
+                                 parse_dates=['date'],
+                                 date_parser= dateparse)
         src = src[list(col_map)]
         src.rename(columns=col_map, inplace=True)
         src = src.loc[src.location != 'Repatriated travellers']

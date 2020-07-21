@@ -127,6 +127,22 @@ class CovidDataset:
 
         return self.var_by_location("total_cases", *locations).diff(periods=14)
 
+    def pos_test_rate(self, window,  *locations):
+        """
+        Return the positive test rate based on the total new cases in the window over the total tests completed
+        within window
+
+        :param window: int - the time window used to compute the positive test rate
+        :param locations: list like - the locations to be used as columns
+
+        :return: DataFrame
+        """
+
+        cases = self.var_by_location("total_cases", *locations).diff(periods=window)
+        tests = self.var_by_location("total_tests", *locations).diff(periods=window)
+
+        return cases / tests
+
     def growth_rate(self, var, window, *locations):
         """
         Return a DataFrame indexed by date and with columns containing average growth rate over window
@@ -139,33 +155,15 @@ class CovidDataset:
         """
         growth = lambda x: np.power(x, 1 / window)
 
-        # select_locations = self.df['location'].apply(lambda loc: loc in locations)
-        # df = self.df.loc[select_locations]
-        # var_pivot = df.pivot(index='date', columns='location', values=var).fillna(0)
-        # var_pivot.resample('D').fillna(method='ffill')
-        var_pivot = self.var_by_location(var, *locations)
-        delta = var_pivot.diff(periods=window)
-        return growth(1 + (delta / var_pivot.shift(periods=window))) - 1
-
-    def active_growth_rate(self, window, *locations):
-        """
-        Return a DataFrame indexed by date and with columns containing average growth rate over window
-
-        :param var: str - the variable for which average growth is calculated
-        :param window: int - number of days to include in the average calculation
-        :param locations: list like - locations to be included as columns
-
-        :return: DataFrame
-        """
-        growth = lambda x: np.power(x, 1 / window)
-
-        # select_locations = self.df['location'].apply(lambda loc: loc in locations)
-        # df = self.df.loc[select_locations]
-        # var_pivot = df.pivot(index='date', columns='location', values=var).fillna(0)
-        # var_pivot.resample('D').fillna(method='ffill')
-        var_pivot = self.active_confirmed_cases(*locations)
-        delta = var_pivot.diff(periods=window)
-        return growth(1 + (delta / var_pivot.shift(periods=window))) - 1
+        if var in self.variables:
+            var_data = self.var_by_location(var, *locations)
+        elif var == "active_confirmed_cases":
+            var_data = self.active_confirmed_cases(*locations)
+        elif var == "pos_test_rate":
+            var_data = self.pos_test_rate(window, *locations)
+        delta = var_data.diff(periods=window)
+        delta_ratio = (delta / var_data.shift(periods=window)).replace([np.inf, -np.inf], np.nan)
+        return growth(1 + delta_ratio) - 1
 
     def cum_pos_test_rate(self, *locations):
         """
