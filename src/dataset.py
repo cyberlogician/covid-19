@@ -113,7 +113,7 @@ class CovidDataset:
             var_pivot = var_pivot.rolling(kwargs["ma_window"]).mean()
         return var_pivot
 
-    def active_confirmed_cases(self, *locations):
+    def active_confirmed_cases(self, *locations, **kwargs):
         """
         Return an estimate of the active confirmed cases.
 
@@ -121,11 +121,15 @@ class CovidDataset:
         total cases.  Using the total case data smooths out some of the reporting variation
 
         :param locations: list like - locations to be included as columns
+        :keyword percapita: boolean (default=False) - if true return active confirmed cases per million population
 
         :return: DataFrame
         """
 
-        return self.var_by_location("total_cases", *locations).diff(periods=14)
+        if kwargs.get("percapita", False):
+            return self.var_by_location("total_cases_per_million", *locations).diff(periods=14)
+        else:
+            return self.var_by_location("total_cases", *locations).diff(periods=14)
 
     def pos_test_rate(self, window,  *locations):
         """
@@ -200,27 +204,33 @@ class CovidDataset:
         :param locations: str - list like of str - the locations to be plotted
 
         Optional key-word arguments
-        :param ma_window: int - if present plot the moving average over ma_window
-        :param figsize: (int, int)
-        :param log_scale: boolean (default=False)
-        :param date_start: str in yyyy=mm-dd format
-        :param data_end: str in yyyy=mm-dd format
-        :param lw: int (default=3) - linewidth
-        :param colours: dict - mapping locations to colour specifications
-        :param title: str
-        :param y_label: str
+        :keyword ma_window: int - if present plot the moving average over ma_window
+        :keyword figsize: (int, int)
+        :keyword log_scale: boolean (default=False)
+        :keyword date_start: str in yyyy-mm-dd format
+        :keyword data_end: str in yyyy-mm-dd format
+        :keyword lw: int (default=3) - linewidth
+        :keyword colours: dict - mapping locations to colour specifications
+        :keyword title: str
+        :keyword y_label: str
+        :keyword percapita: boolean (default=False) Valid only if var is active_confirmed_cases
 
-        :return: matplotlib.axes
+        :return: matplotlib.figure
         """
 
         if var == "cum_pos_test_rate":
             plot_data = self.cum_pos_test_rate(*locations)
         elif var == "cum_pos_test_growth_rate":
             plot_data = self.cum_pos_test_growth_rate(kwargs.get("ma_window", 1), *locations)
+        elif var == "active_confirmed_cases":
+            plot_data = self.active_confirmed_cases(*locations, **kwargs)
         elif var[-6:] == "growth":
             plot_data = self.growth_rate(var[:-7], kwargs.get("ma_window", 1), *locations)
         elif "ma_window" in kwargs:
-            plot_data = self.var_by_location(var, *locations, ma_window=kwargs["ma_window"])
+            if var == "pos_test_rate":
+                plot_data = self.pos_test_rate(kwargs["ma_window"], *locations)
+            else:
+                plot_data = self.var_by_location(var, *locations, ma_window=kwargs["ma_window"])
         else:
             plot_data = self.var_by_location(var, *locations)
 
@@ -233,6 +243,7 @@ class CovidDataset:
             logy=kwargs.get("log_scale", False),
             lw=kwargs.get("lw", 3),
             title=kwargs.get("title", ""),
+            ylabel=kwargs.get("y_label","")
         )
         if "colours" in kwargs:
             plot_properties["color"] = [kwargs["colours"][loc] for loc in sorted(locations)]
@@ -276,8 +287,8 @@ class CovidDataset:
         dates = deaths.index
         # print([list(map(str, dates))])
 
-        x_ticks = [dates[k] for k in range(0,len(dates), 7)]
-        x_tick_labels = [str(x)[10:15] for x in x_ticks]
+        x_ticks = [k for k in range(0,len(dates), 7)]
+        x_tick_labels = [str(dates[x])[10:15] for x in x_ticks]
         ax_l.set_xticks(x_ticks)
         ax_l.set_xticklabels(x_tick_labels)
         ax_l.set_xlabel("2020")
