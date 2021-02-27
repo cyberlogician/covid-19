@@ -13,7 +13,7 @@ class CovidDataset:
         'date': 'Date data is reported by location',
         'location': 'Report location',
         'new_cases': 'Number of new cases reported on date (confirmed and probable)',
-        'new_case_rate': 'New cases as proportion of population',
+        'new_cases_rate': 'New cases as proportion of population',
         'total_cases': 'Total cases reported as of date',
         'total_cases_rate': 'Total cases as proportion of populationreported as of date',
         'new_deaths': 'New deaths reported on date',
