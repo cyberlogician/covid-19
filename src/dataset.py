@@ -1,94 +1,46 @@
-from pathlib import Path
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-from matplotlib.ticker import (MultipleLocator, FormatStrFormatter,
-                               AutoMinorLocator)
+from .utilities import rate_to_dbl, dbl_to_rate, dbl_colour
+
+
 
 class CovidDataset:
     """
     Interface class so that all data looks the same
     """
 
-    variables = [
-        'date',
-        'location',
-        'new_cases',
-        'new_cases_per_million',
-        'total_cases',
-        'total_cases_per_million',
-        'new_deaths',
-        'new_deaths_per_million',
-        'total_deaths',
-        'total_deaths_per_million',
-        'new_tests',
-        'new_tests',
-        'new_tests_per_thousand',
-        'total_tests',
-        'total_tests_per_thousand',
-        'tests_units'
-    ]
+    variables = {
+        'date': 'Date data is reported by location',
+        'location': 'Report location',
+        'new_cases': 'Number of new cases reported on date (confirmed and probable)',
+        'new_cases_rate': 'New cases as proportion of population',
+        'total_cases': 'Total cases reported as of date',
+        'total_cases_rate': 'Total cases as proportion of populationreported as of date',
+        'new_deaths': 'New deaths reported on date',
+        'new_deaths_rate': 'New deaths as proportion of population reported on date',
+        'total_deaths': 'Total deaths as of date',
+        'total_deaths_rate': 'Total deaths as proportion of population as of date',
+        'new_tests': 'New tests reported as of date',
+        'new_tests_rate': 'New tests as proportion of population reported as of date',
+        'total_tests': 'Total tests as of date',
+        'total_tests_rate': 'Total tests as proportion of population as of date',
+        'tests_units': 'One of tests or persons'
+    }
 
-    dbl_periods = {days: np.expm1(np.log(2) / days) for days in [2,3,4,5,6,7,14,28]}
-    dbl_colour = {1: (1.0, 0, 0), 2: (1.0, 0.2, 0), 3: (1.0, 0.4, 0), 4: (1.0, 0.6, 0), 5: (1.0, 0.8, 0),
-                   6: (1.0, 1.0, 0), 7: (0.8, 1.0, 0), 14: (0, 1.0, 0), 28: (0, 1.0, 0.5)}
 
     def __init__(self, src_df):
         """
         Initialize object from a source dataframe
-        :param src_df: pd.DataFrame - src_df.columns must include:
-            date,
-            location,
-            total_cases, total_cases_per_million,
-            total_deaths, total_deaths_per_million
-            total_tests, total_tests_per_thousand
-            test_units.
+
+        :param src_df: pd.DataFrame - src_df.columns must include self.variables
         """
 
         self.df = src_df
-        cols = self.df.columns
-        for var in ["cases", "deaths", "tests"]:
-            if f"new_{var}" not in cols:
-                self._new_from_total(var)
-            if var == "tests":
-                if f"new_{var}_per_thousand" not in cols:
-                    self._new_from_total(var, "thousand")
-            else:
-                if f"new_{var}_per_million" not in cols:
-                    self._new_from_total(var, "million")
         return
 
     @property
     def current_date(self):
         return max(self.df.date)
-
-    def _new_from_total(self, var, unit=""):
-        """
-        compute daily measurements from total
-
-        :param var: str - one of cases, deaths, tests
-        :param unit: str - one of empty string, thousand, million
-        :return: None
-        """
-
-        # Set tot_var (source) and new_var (target)
-        if unit == "":
-            tot_var = f"total_{var}"
-            new_var = f"new_{var}"
-        else:
-            tot_var = f"total_{var}_per_{unit}"
-            new_var = f"new_{var}_per_{unit}"
-
-        tot = self.df.pivot(index='date', columns='location', values=tot_var).fillna(0)
-        tot.resample('D').fillna(method='ffill')
-        nc = tot.diff()
-        nc = nc.stack()
-        nc.rename(new_var, inplace=True)
-        self.df = self.df.join(nc, on=['date', 'location'], lsuffix='_old')
-        if f'{new_var}_old' in self.df.columns:
-            self.df.drop(f'{new_var}_old', axis='columns')
-        return
 
     def get_location(self, location):
         return self.df.loc[self.df.location == location]
@@ -98,11 +50,14 @@ class CovidDataset:
         Return a DataFrame date x location -> var
 
         :param var: str - the variable to be used for values
-        :param locations: list like - the locations to be used as columns
-        :param ma_window: int - if present return moving average over window
+        :param *locations: list like - the locations to be used as columns
+        :keyword ma_window: int - if present return moving average over window
 
         :return: DataFrame
         """
+
+        if var not in self.variables:
+            return NotImplemented
 
         select_locations = self.df['location'].apply(lambda loc: loc in locations)
         df = self.df.loc[select_locations]
@@ -147,6 +102,41 @@ class CovidDataset:
 
         return cases / tests
 
+    def incidence(self, window, *locations, **kwargs):
+        """
+        Calculate an estimate of the true incidence (number of new infections per million population).
+
+        incidence = Prob(infected) = Prob(Tested) * Prob(infected | Tested) / Prob(Tested | Infected)
+                  = test_rate * pos_test_rate / Prob(Tested | Infected)
+
+        Prob(Tested | Infected) is a function of the test strategy being employed within the population.
+        For example, when test capacity is limited, tests may be reserved for indivviduals who are most likely
+        to be infected.  This means that many infected individuals will not be selected for testing and the
+        resulting Prob(Tested | Infected) is relatively low (and the pos_test_rate is high relative to the true
+        incidence).  When test criteria are relaxed the Prob(Tested | Infected) and tends to 1 when everyone is
+        tested
+
+        Now,
+            test_rate * pos_test_rate = (num_tests / population) * (num_new_cases / num_tests)
+                                      = num_new_cases / population
+
+        and incidence = num_new_cases / (population *  Prob(Tested | Infected))
+
+        So to calculate an estimate of incidence we need to estimate the function Prob(Tested | Infected)).
+
+        Assumptions:
+            Prob(Tested | Infected)) is locally constant. It is determined by the test criteria and test demand.
+                The second factor relates to clarity of self-screening and perception regarding the benefit of
+                being tested
+
+        :param window: int - number od periods to use to compute moving averaged of new_cases
+        :param locations: list like - the locations to be used as columns
+        :keyword strategy_changes: list(time_indices) - times at which the test strategy is know to have changed
+        :keyword true_incidence_observations: list(time_index, incidence) - points at which true incidence is known
+        :return:
+        """
+        return
+
     def growth_rate(self, var, window, *locations):
         """
         Return a DataFrame indexed by date and with columns containing average growth rate over window
@@ -165,6 +155,9 @@ class CovidDataset:
             var_data = self.active_confirmed_cases(*locations)
         elif var == "pos_test_rate":
             var_data = self.pos_test_rate(window, *locations)
+        else:
+            return NotImplemented
+
         delta = var_data.diff(periods=window)
         delta_ratio = (delta / var_data.shift(periods=window)).replace([np.inf, -np.inf], np.nan)
         return growth(1 + delta_ratio) - 1
@@ -312,12 +305,11 @@ class CovidDataset:
         #         ax_l.axhline(y=dbl_rate, c=self.dbl_colour[dbl_days], lw=3)
         y_ticks = ["inf",28,14,7,6,5,4,3,2,1]
         for bot_idx, top_idx in zip(y_ticks[:-1], y_ticks[1:]):
-            bot = self.dbl_periods.get(bot_idx, 0)
-            top = self.dbl_periods.get(top_idx, 0.5)
-            ax_l.axhspan(bot, top, color=self.dbl_colour[top_idx], alpha=0.2)
+            bot, top = dbl_to_rate(bot_idx), dbl_to_rate(top_idx)
+            ax_l.axhspan(bot, top, color=dbl_colour[top_idx], alpha=0.2)
 
-        ax_l.set_yticks(list(self.dbl_periods.values()))
-        ax_l.set_yticklabels(list(self.dbl_periods.keys()))
+        ax_l.set_yticks([dbl_to_rate(tick) for tick in y_ticks])
+        ax_l.set_yticklabels(y_ticks)
         ax_l.set_ylabel("Number of Days to Double")
 
         ax_r.set_ylabel('Log Total Cases')
