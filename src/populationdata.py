@@ -79,10 +79,12 @@ class PopulationData:
             url,
             sheet_name="Population",
             header=[3],
-            skiprows=[4]
+            skiprows=[4],
+            engine="openpyxl"
         )
+        df = df.filter(items=["Year", "Month"] + list(pr_mapper), axis=1)
         df.rename(columns=pr_mapper, inplace=True)
-        df = df.set_index(["Year", "Month"]).drop('Level', axis='columns')
+        df = df.set_index(["Year", "Month"])
         df = df.stack(dropna=False)
         df = df.reset_index()
         df.rename(columns={
