@@ -78,7 +78,8 @@ class PHAC(CovidDataset):
                    'numteststoday': 'new_tests'
                    }
         dateparse = lambda x: datetime.date(*time.strptime(x, '%d-%m-%Y')[:3])
-        src = pd.read_csv("https://health-infobase.canada.ca/src/data/covidLive/covid19.csv",
+        self.src_url = "https://health-infobase.canada.ca/src/data/covidLive/covid19.csv"
+        src = pd.read_csv(self.src_url,
                                  error_bad_lines=False,
                                  warn_bad_lines=False,
                                  parse_dates=['date'],
