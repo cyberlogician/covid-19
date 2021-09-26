@@ -97,6 +97,24 @@ class PHAC(CovidDataset):
         src.rename(columns=col_map, inplace=True)
         src = src.loc[src.location != 'Repatriated travellers']
 
+        # Clean data
+        cols_to_clean = {
+            'total_cases': int,
+            'new_cases': int,
+            'new_tests': int,
+            'total_tests': int,
+            'new_deaths': int,
+            'total_confirmed_cases': int,
+            'total_probable_cases': int,
+            'total_recovered': int,
+            'new_recovered': int,
+            'active_cases': int
+        }
+        for var in cols_to_clean:
+            src[var] = src[var].apply(lambda x: int(x.replace(",", ""))
+                                                            if isinstance(x, str)
+                                                            else x)
+
         # Set test_units
         # print(src.columns)
         src['test_units'] = src.apply(lambda row: 'persons'
@@ -110,7 +128,7 @@ class PHAC(CovidDataset):
         src['total_deaths_rate'] = src['total_deaths_rate'] / 100000.0
         src['active_cases_rate'] = src['active_cases_rate'] / 1000000.0
 
-        for var in ['new_cases', 'new_cases', 'new_tests', 'total_tests','new_deaths', 'total_confirmed_cases',
+        for var in ['new_cases', 'new_tests', 'total_tests','new_deaths', 'total_confirmed_cases',
                     'total_probable_cases', 'total_recovered', 'new_recovered', 'active_cases']:
             src[var+"_rate"] = src[var] / src['population']
 
