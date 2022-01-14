@@ -126,7 +126,7 @@ class PHAC(CovidDataset):
         src['population'] = 100000 * src['total_cases'] / src['total_cases_rate']
         src['total_cases_rate'] = src['total_cases_rate'] / 100000.0
         src['total_deaths_rate'] = src['total_deaths_rate'] / 100000.0
-        src['active_cases_rate'] = src['active_cases_rate'] / 1000000.0
+        # src['active_cases_rate'] = src['active_cases_rate'] / 1000000.0
 
         for var in ['new_cases', 'new_tests', 'total_tests','new_deaths', 'total_confirmed_cases',
                     'total_probable_cases', 'total_recovered', 'new_recovered', 'active_cases']:
